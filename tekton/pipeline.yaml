@@ -61,11 +61,26 @@ spec:
         # - name: depth
         #   value: "1"
 
+    - name: docker-lint # New task added here
+      taskRef:
+        name: linter-docker-lint # Reference the new task definition
+      runAfter:
+        - fetch-source # Run after cloning the source
+      workspaces:
+        - name: workspace # Match the workspace name in the linter task
+          workspace: shared-workspace
+      params:
+        - name: path-to-dockerfile # Pass the correct path parameter
+          value: $(params.pathToContext) # Use the pipeline's context path ('app')
+        # Optional: Pass other linter params if needed, e.g.:
+        # - name: fail-on-lint-errors
+        #   value: "false"
+
     - name: build-image
       taskRef:
         name: build-docker-image # Reference the task created earlier
       runAfter:
-        - fetch-source # Run after cloning the source
+        - docker-lint # Update runAfter to depend on the new lint task
       workspaces:
         - name: source
           workspace: shared-workspace
