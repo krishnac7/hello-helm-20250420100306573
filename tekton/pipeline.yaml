@@ -1,0 +1,99 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: simple-app-pipeline
+spec:
+  description: |
+    This pipeline clones a git repository, builds a Docker image
+    using Kaniko, and deploys it to Kubernetes using kubectl.
+  params:
+    - name: repoUrl
+      type: string
+      description: The git repository URL.
+    - name: revision
+      type: string
+      description: The git revision (branch, tag, commit sha) to clone.
+      default: main
+    - name: imageUrl
+      type: string
+      description: The Docker image registry/repository URL (e.g., gcr.io/my-project/simple-app).
+    - name: imageTag
+      type: string
+      description: The tag for the Docker image.
+      default: latest
+    - name: pathToContext
+      type: string
+      description: Path to the directory containing the Dockerfile and source code within the repo.
+      default: app # Corresponds to the 'app' directory created earlier
+    - name: pathToManifests
+      type: string
+      description: Path to the Kubernetes manifests directory within the repo.
+      default: kubernetes # Corresponds to the 'kubernetes' directory
+    - name: deploymentName
+      type: string
+      description: Name of the Kubernetes deployment.
+      default: simple-app # Matches the name in deployment.yaml
+    - name: namespace
+      type: string
+      description: Kubernetes namespace for deployment.
+      default: default
+
+  workspaces:
+    - name: shared-workspace
+      description: This workspace will receive the cloned repository and be used by subsequent tasks.
+
+  tasks:
+    - name: fetch-source
+      # Assumes a git-clone ClusterTask or Task is available in the cluster
+      # You might need to install it: kubectl apply -f https://raw.githubusercontent.com/tektoncd/catalog/main/task/git-clone/0.9/git-clone.yaml
+      taskRef:
+        name: git-clone
+        kind: ClusterTask # Or Task, depending on how git-clone is installed
+      workspaces:
+        - name: output
+          workspace: shared-workspace
+      params:
+        - name: url
+          value: $(params.repoUrl)
+        - name: revision
+          value: $(params.revision)
+        # Optional: configure depth, sslVerify, etc. as needed
+        # - name: depth
+        #   value: "1"
+
+    - name: build-image
+      taskRef:
+        name: build-docker-image # Reference the task created earlier
+      runAfter:
+        - fetch-source # Run after cloning the source
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+      params:
+        - name: pathToContext
+          value: $(params.pathToContext)
+        - name: imageUrl
+          value: $(params.imageUrl)
+        - name: imageTag
+          value: $(params.imageTag)
+        # pathToDockerfile defaults to Dockerfile within the context
+
+    - name: deploy-app
+      taskRef:
+        name: deploy-kubernetes # Reference the task created earlier
+      runAfter:
+        - build-image # Run after building the image
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+      params:
+        - name: pathToManifests
+          value: $(params.pathToManifests)
+        - name: deploymentName
+          value: $(params.deploymentName)
+        - name: namespace
+          value: $(params.namespace)
+        - name: imageUrl # Pass imageUrl
+          value: $(params.imageUrl)
+        - name: imageTag # Pass imageTag
+          value: $(params.imageTag)

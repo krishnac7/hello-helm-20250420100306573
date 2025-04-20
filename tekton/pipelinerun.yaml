@@ -1,0 +1,36 @@
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  generateName: simple-app-pipeline-run-
+spec:
+  pipelineRef:
+    name: simple-app-pipeline
+
+  params:
+    - name: repoUrl
+      value: https://github.com/your-repo/simple-app.git
+    - name: revision
+      value: main
+    - name: imageUrl
+      value: your-docker-registry/simple-app
+    - name: imageTag
+      value: "1.0"
+    # Optional: Override defaults if your paths or names differ
+    # - name: pathToContext
+    #   value: app
+    # - name: pathToManifests
+    #   value: kubernetes
+    # - name: deploymentName
+    #   value: simple-app
+    # - name: namespace
+    #   value: default
+
+  workspaces:
+    - name: shared-workspace
+      persistentVolumeClaim:
+        claimName: tekton-pvc
+      # Alternatively, use an emptyDir for temporary storage (data lost after run):
+      # emptyDir: {}
+
+  # Optional: Define a ServiceAccount to run the PipelineRun
+  # serviceAccountName: tekton-pipeline-sa # <-- Uncomment and set if needed

@@ -1,0 +1,36 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: build-docker-image
+spec:
+  params:
+    - name: pathToContext
+      description: The path to the directory containing the Dockerfile and source code
+      default: .
+    - name: pathToDockerfile
+      description: The path to the Dockerfile relative to the context
+      default: Dockerfile
+    - name: imageUrl
+      description: Url of image repository
+    - name: imageTag
+      description: Tag to apply to the built image
+      default: latest
+  workspaces:
+    - name: source
+      description: Workspace containing the source code and Dockerfile
+  steps:
+    - name: build-and-push
+      image: gcr.io/kaniko-project/executor:v1.9.0 # Use a specific Kaniko version
+      # Kaniko executor requires root privileges for certain operations.
+      securityContext:
+        runAsUser: 0
+      command:
+        - /kaniko/executor
+      args:
+        - --context=$(workspaces.source.path)/$(params.pathToContext)
+        - --dockerfile=$(workspaces.source.path)/$(params.pathToContext)/$(params.pathToDockerfile)
+        - --destination=$(params.imageUrl):$(params.imageTag)
+        # Add --insecure flag if pushing to an insecure registry (e.g., local registry)
+        # - --insecure
+        # Add registry credentials if needed
+        # - --build-arg=... # Example for build args

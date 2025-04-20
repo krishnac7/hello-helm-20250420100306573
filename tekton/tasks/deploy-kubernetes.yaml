@@ -1,0 +1,56 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: deploy-kubernetes
+spec:
+  params:
+    - name: pathToManifests
+      description: The path to the Kubernetes manifest files
+      default: kubernetes
+    - name: deploymentName
+      description: The name of the deployment to rollout
+    - name: namespace
+      description: The namespace to deploy to
+      default: default
+    - name: imageUrl
+      description: Url of image repository used in the deployment
+    - name: imageTag
+      description: Tag of the image used in the deployment
+  workspaces:
+    - name: source
+      description: Workspace containing the Kubernetes manifests
+  steps:
+    - name: apply-manifests
+      image: bitnami/kubectl:latest # Use a kubectl image
+      command:
+        - kubectl
+      args:
+        - apply
+        - -n
+        - $(params.namespace)
+        - -f
+        - $(workspaces.source.path)/$(params.pathToManifests)
+
+    - name: update-deployment-image
+      image: bitnami/kubectl:latest
+      command:
+        - kubectl
+      args:
+        - set
+        - image
+        - deployment/$(params.deploymentName)
+        - simple-app=$(params.imageUrl):$(params.imageTag)
+        - -n
+        - $(params.namespace)
+
+    - name: rollout-status
+      image: bitnami/kubectl:latest
+      command:
+        - kubectl
+      args:
+        - rollout
+        - status
+        - deployment/$(params.deploymentName)
+        - -n
+        - $(params.namespace)
+        - --timeout=60s # Add a timeout for the rollout status check
