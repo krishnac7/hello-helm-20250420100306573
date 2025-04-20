@@ -6,7 +6,7 @@ spec:
   params:
     - name: pathToContext
       description: The path to the directory containing the Dockerfile and source code
-      default: .
+      default: "app"
     - name: pathToDockerfile
       description: The path to the Dockerfile relative to the context
       default: Dockerfile
